@@ -1,8 +1,8 @@
-# epine
+# Epine
 
-`epine` is a tiny Makefile generator for C/C++ projects. Although it was
-primarily built for [Epitech] students, we aim to make it available for anyone
-needing a quick tool to generate Makefiles for their own projects.
+Epine is a tiny Makefile generator for C/C++ projects. Although it was primarily
+built for [Epitech] students, we aim to make it available for anyone needing a
+quick tool to generate Makefiles for their own projects.
 
 [Epitech]: https://epitech.eu
 
@@ -63,7 +63,7 @@ If you want to link to a particular library, simply add it to your target's
 `cflags`:
 
 ```toml
-cflags = ["-lcsfml-system", "-lcsfml-graphics", ...]
+cflags = ["-lcsfml-system", "-lcsfml-graphics"]
 ```
 
 ## Dependencies
