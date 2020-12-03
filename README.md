@@ -177,6 +177,20 @@ exist. To create a new project in a new directory, use `epine create`.
 
 `--name` _name_ Set the executable name. Defaults to the directory name.
 
+`-i`, `--interactive` Create the project using the interactive prompt.
+
+#### Examples
+
+##### To create a new binary project
+```sh
+epine create corewar
+```
+
+##### To create a new library project
+```sh
+epine create --lib libmy
+```
+
 ## Manifest reference (`Epine.toml`)
 
 ```toml
