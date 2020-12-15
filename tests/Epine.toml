@@ -1,0 +1,74 @@
+# Optionally specify the default target (the one built when running `make`)
+default-target = "corewar"
+
+# Where remote dependencies are downloaded (default = "epine_dependencies")
+dependencies = "epine_modules"
+
+# You can add a binary target (where object files are linked)
+[[bin]]
+# Name of the binary
+name = "corewar"
+
+# Source files
+src = ["./src/**/*.c"]
+
+# Include directories
+include = ["./include"]
+
+# Override the default compiler (default = "cc")
+cc = "gcc"
+
+# You can add compiler flags
+lflags = ["-lcsfml-system", "-lcsfml-graphics", "-lcsfml-audio"]
+cflags = ["-Wall", "-Wextra"]
+
+# You can specify commands to be run before and after each build
+# If a command fails, the build is terminated
+run-before = ["astyle --style=allman --recursive ./src/*.c ./include/*.h"]
+run-after = ["notify-send '$(EPINE_NAME)' 'Build ready.'"]
+
+# Feature flags are inherited by all dependencies
+features = ["calloc", "malloc", "free", "open", "read", "write", "close"]
+# This defines -DEPINE_FEAT_CALLOC, -DEPINE_FEAT_MALLOC, ...
+
+# Dependencies are libraries that are built before the target. Remote
+# dependencies are downloaded when you run `epine` or `epine refetch`
+dependencies = [
+    # Another target from the same project, defined elsewhere in the manifest
+    { target = "libcorewar.a" },
+
+    # Local dependency
+    { path = "./libmy" },
+
+    # Remote Git dependency
+    { git = "https://github.com/yourname/libjson" },
+
+    # Complete syntax
+    # Epine will run `make libmy.a` to build the dependency
+    # The name is inferred in most cases, but you can explicitely specify it
+    { path = "./libmy", target = "libmy.a", name = "libmy" },
+]
+
+# You can also add a library target (object files are archived with `ar -c`)
+[[lib]]
+name = "libcorewar.a"
+src = ["./libcorewar/src/**/*.c"]
+include = ["./libcorewar/include"]
+cflags = ["-Wall", "-Wextra"]
+dependencies = [{ git = "https://github.com/yourname/libmy" }]
+
+# You can add as many additional targets as you want, but names must be unique.
+[[bin]]
+name = "asm"
+src = ["./asm/src/**/*.c"]
+include = ["./asm/include"]
+dependencies = [{ git = "https://github.com/yourname/libmy" }]
+
+# An example target for unit testing using Criterion
+[[bin]]
+name = "unit_tests"
+src = ["./tests/**/*.c"]
+lflags = ["-lcriterion"]
+# Equivalent to [{ path = ".", name = "libcorewar.a" }]: depend on the library
+# defined above for testing
+# dependencies = ["libcorewar.a"]

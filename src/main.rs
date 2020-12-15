@@ -1,13 +1,17 @@
+use std::{fs::File, io::Read};
+
 use clap::clap_app;
 
 mod manifest;
 
-fn main() {
-    let _matches = clap_app!(epine =>
+use manifest::Manifest;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let matches = clap_app!(epine =>
         (version: "1.0")
         (author: "nasso <nassomails@gmail.com>")
         (about: "A Makefile generator for the 21st century")
-        (@arg MANIFEST_PATH: --manifest-path +takes_value
+        (@arg MANIFEST_PATH: --manifest +takes_value
             "Path to the manifest file. By default, Epine will look for
             Epine.toml in the current directory and walk its way up until it
             finds one.")
@@ -43,4 +47,18 @@ fn main() {
         )
     )
     .get_matches();
+
+    // get manifest path
+    let manifest_path = matches.value_of("MANIFEST_PATH").unwrap_or("Epine.toml");
+    let mut manifest_file = File::open(manifest_path)?;
+    let mut manifest_source = String::new();
+
+    // read the source
+    manifest_file.read_to_string(&mut manifest_source)?;
+
+    let manifest: Manifest = toml::from_str(&manifest_source)?;
+
+    println!("{:#?}", manifest);
+
+    Ok(())
 }
