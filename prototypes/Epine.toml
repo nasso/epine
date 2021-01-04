@@ -1,0 +1,17 @@
+default-target = "hello"
+
+[[bin]]
+name = "hello"
+src = ["./src/**/*.c"]
+include = ["./include"]
+
+[[bin]]
+name = "unit_tests"
+src = ["./src/**/*.c", "./tests/**/*.c"]
+include = ["./include"]
+lflags = ["-lcriterion"]
+
+[[action]]
+name = "tests_run"
+dependencies = [{ target = "unit_tests" }]
+run = ["./unit_tests"]

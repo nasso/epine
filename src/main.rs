@@ -2,9 +2,7 @@ use std::{fs::File, io::Read};
 
 use clap::clap_app;
 
-mod manifest;
-
-use manifest::Manifest;
+use epine::Manifest;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let matches = clap_app!(epine =>
@@ -12,9 +10,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         (author: "nasso <nassomails@gmail.com>")
         (about: "A Makefile generator for the 21st century")
         (@arg MANIFEST_PATH: --manifest +takes_value
-            "Path to the manifest file. By default, Epine will look for
-            Epine.toml in the current directory and walk its way up until it
-            finds one.")
+            "Path to the manifest file. By default, Epine will look for Epine.toml in the current directory and walk its way up until it finds one.")
         (@subcommand create =>
             (about: "Create a new project")
             (version: "1.0")

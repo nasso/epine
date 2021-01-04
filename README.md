@@ -32,7 +32,7 @@ Template:
 1) C project
 Your choice: 1
 
-Successfully created project 'corewar' in `corewar`.
+Successfully created project 'corewar' in 'corewar'.
 $ tree corewar
 corewar
 ├── include
@@ -42,87 +42,74 @@ corewar
 ├── tests
 │   └── it_works.c
 ├── .gitignore
-├── Epine.toml
-└── Makefile
+└── Epine.lua
+```
+
+```lua
+target "corewar"
+    files { match "./src/*.c" }
+    include "./include"
 ```
 
 ### Regenerating the Makefile
 
-To regenerate your Makefile (after modifying the manifest), simply run `epine`
-within your project directory:
+To regenerate your Makefile (after modifying the config file), simply run
+`epine` within your project directory:
 ```sh
 $ cd corewar
 $ epine
-< Epine.toml
+< Epine.lua
 > Makefile
 ```
 
 ## Libraries
 
-If you want to link to a particular library, simply add it to your target's
-`cflags`:
+If you want to link to a particular system library:
 
-```toml
-cflags = ["-lcsfml-system", "-lcsfml-graphics"]
+```lua
+target "corewar"
+    files { match "./src/*.c" }
+    include "./include"
+    link "csfml-system"
+    link "csfml-graphics" from "./lib/csfml"
 ```
 
 ## Dependencies
 
-Libraries in C have always been annoying when compared to more modern solutions,
-like [npm](https://www.npmjs.com/), [Cargo](https://crates.io/) and the like.
-Epine aims to make it really easy to add library dependencies to your project,
-by taking inspiration from these established solutions.
+Sometimes linking to a library isn't enough. For example you may want to build
+it from source. In this case, you probably want to use a *dependency* instead:
 
-Say you have made a library and have it on your personal GitHub account.
-All you have to do to add a dependency is add this to your manifest:
-
-```toml
-dependencies = ["https://github.com/yourname/libmy"]
+```lua
+target "corewar"
+    files { match "./src/*.c" }
+    include "./include"
+    use "libmy.a" from "./lib/libmy"
 ```
 
-### What's the difference between a library and dependency?
+You can also pull it from a remote Git repository:
 
-A library is manually linked with `cflags` as shown above. You also have to
-manually handle include paths to make sure you can `#include` its headers in
-your source. If the library code is updated, it must be manually rebuilt too.
-
-On the other hand, a dependency, is transparently managed. All you have to do is
-add an entry to your manifest, and Epine will automatically add the required
-compiler flags and include paths. The generated Makefile will also call `make`
-in the library's source directory, to keep it up-to-date with the latest changes
-if you make any.
-
-You're probably wondering how that works. Following is a rough explanation.
-
-### Compiler flags
-
-The name of the library is inferred from the name of the remote repository, the
-name of the directory or the name of the target.
-
-#### Examples
-
-- From a target name: `"libcorewar.a" -> -lcorewar`
-- From a directory name: `"./libmy" -> -lmy`
-- From a repository URI: `"https://github.com/yourname/libjzon" -> -ljzon`
-- Explicitly specified: `{ path = "./jsonlib", name = "libjzon" } -> -ljzon`
+```lua
+target "corewar"
+    files { match "./src/*.c" }
+    include "./include"
+    use "my" from "https://github.com/nasso/libmy.git"
+```
 
 ### Include paths
 
 To know what include paths to add for each dependency, Epine will try the
 following, in order:
 
-- If an Epine manifest is found in the dependency root directory, include paths
-    are read from it.
-- If it exists, add the `include/` folder.
-- If specified, add the paths specified in the `include` field of the dependency
-    entry.
-    ```toml
-    dependencies = [
-        {
-            path = "./libjson",
-            include = ["./libjson/headers"]
-        }
-    ]
+- If an Epine config file is found in the dependency's root directory, include
+    paths are read from it.
+- Otherwise, add the `include/` folder if it exists.
+- Otherwise, add the paths specified in the `headers` field of the dependency
+    entry, if specified.
+    ```lua
+    use {
+        name = "list";
+        headers = { "./headers" };
+    } from "./lib/linkedlist"
     ```
 
 ## CLI reference
@@ -138,10 +125,10 @@ exists. To initialize a project in a pre-existing directory, use `epine init`.
 
 #### Options
 
-`--bin` Create a binary project (`corewar` executable). This is the default
+`--bin` Create a binary project (e.g. `corewar` executable). This is the default
     behaviour.
 
-`--lib` Create a library project (`libcorewar.a`).
+`--lib` Create a library project (e.g. `libcorewar.a`).
 
 `--name` _name_ Set the executable name. Defaults to the directory name.
 
@@ -150,11 +137,13 @@ exists. To initialize a project in a pre-existing directory, use `epine init`.
 #### Examples
 
 ##### To create a new binary project
+
 ```sh
 epine create corewar
 ```
 
 ##### To create a new library project
+
 ```sh
 epine create --lib libmy
 ```
@@ -181,102 +170,155 @@ exist. To create a new project in a new directory, use `epine create`.
 
 #### Examples
 
-##### To create a new binary project
+##### To initialize a new binary project
+
 ```sh
-epine create corewar
+epine init
 ```
 
-##### To create a new library project
+##### To initialize a new library project
+
 ```sh
-epine create --lib libmy
+epine init --lib
 ```
 
-## Manifest reference (`Epine.toml`)
+## Configuration file quick reference (`Epine.lua`)
 
-```toml
-# Optionally specify the default target (the one built when running `make`)
-default-target = "corewar"
+The configuration file is written in [Lua].
 
-# Where remote dependencies are downloaded (default = "epine_dependencies")
-dependencies = "epine_modules"
+[Lua]: https://lua.org
 
-# You can add a binary target (where object files are linked)
-[[bin]]
-# Name of the binary
-name = "corewar"
+```lua
+-- to import a module
+local Epitech = require "epitech"
 
-# Source files
-src = ["./src/**/*.c"]
+-- the Makefile template to use (see reference below)
+Epitech.template "MUL_my_rpg_2019"
 
-# Include directories
-include = ["./include"]
+-- a list of values to declare at the top of the generated Makefile
+config {
+    NAME = "my_rpg";
+}
 
-# Override the default compiler (default = "cc")
-cc = "gcc"
+-- a target (binary by default)
+target "$(NAME)"
+    -- add a single source file
+    file "./src/main.c"
 
-# You can add compiler flags
-lflags = ["-lcsfml-system", "-lcsfml-graphics", "-lcsfml-audio"]
-cflags = ["-Wall", "-Wextra"]
+    -- add multiple source files
+    file { "./src/menu.c", "./src/player.c" }
 
-# You can specify commands to be run before and after each build
-# If a command fails, the build is terminated
-run-before = ["astyle --style=allman --recursive ./src/*.c ./include/*.h"]
-run-after = ["notify-send '$(EPINE_NAME)' 'Build ready.'"]
+    -- or add files matching a pattern
+    file { match "./src/*.c" }
 
-# Feature flags are inherited by all dependencies
-features = ["calloc", "malloc", "free", "open", "read", "write", "close"]
-# This defines -DEPINE_FEAT_CALLOC, -DEPINE_FEAT_MALLOC, ...
+    -- remove files
+    file_remove "./src/test.c"
 
-# Dependencies are libraries that are built before the target. Remote
-# dependencies are downloaded when you run `epine` or `epine refetch`
-dependencies = [
-    # Another target from the same project, defined elsewhere in the manifest
-    { target = "libcorewar.a" },
+    -- add an include path
+    include "./include"
 
-    # Local dependency
-    { path = "./libmy" },
+    -- add many include paths
+    include { "./headers", match "./lib/*/include" }
 
-    # Remote Git dependency
-    { git = "https://github.com/yourname/libjson" },
+    -- remove include paths
+    include_remove "./lib/secret/include"
 
-    # All of these can be shortened to just:
-    "libcorewar.a",
-    "./libmy",
-    "https://github.com/yourname/libjson",
+    -- add compiler flags
+    cflag { "-Wall", "-Wextra" }
 
-    # Complete syntax
-    {
-        path = "./libmy",
+    -- only add -g3 in debug mode
+    cflag { debug "-g3" }
 
-        # Epine will run `make libmy.a` to build the dependency
-        target = "libmy.a",
+    -- remove a cflag
+    cflag_remove { "-Wextra" }
 
-        # The name is inferred in most cases, but you can explicitely specify it
-        name = "libmy",
-    },
-]
+    -- define symbols
+    define { "ALLOW_WRITE", "ALLOW_MALLOC", "ALLOW_FREE" }
 
-# You can also add a library target (object files are archived with `ar -c`)
-[[lib]]
-name = "libcorewar.a"
-src = ["./libcorewar/src/**/*.c"]
-include = ["./libcorewar/include"]
-cflags = ["-Wall", "-Wextra"]
-dependencies = [{ git = "https://github.com/yourname/libmy" }]
+    -- remove defined symbols
+    define_remove { "ALLOW_FREE" }
 
-# You can add as many additional targets as you want, but names must be unique.
-[[bin]]
-name = "asm"
-src = ["./asm/src/**/*.c"]
-include = ["./asm/include"]
-dependencies = [{ git = "https://github.com/yourname/libmy" }]
+    -- bulid and link to a library built from a local target (defined below)
+    use "libmy.a"
 
-# An example target for unit testing using Criterion
-[[bin]]
-name = "unit_tests"
-src = ["./tests/**/*.c"]
-lflags = ["-lcriterion"]
-# Equivalent to [{ path = ".", name = "libcorewar.a" }]: depend on the library
-# defined above for testing
-dependencies = ["libcorewar.a"]
+    -- build and link to a library pulled from a git repository
+    use "game" from "https://github.com/arcarox/libgame.git"
+
+    -- sometimes you may want to specify include paths to add. Epine will add
+    -- ./include by default if the folder exists
+    use {
+        name = "list";
+        include = { "./headers" };
+    } from "./lib/linkedlist"
+
+-- a static library target
+target "libmy.a"
+    -- specify that the target is a static library
+    kind "static"
+
+-- a binary for testing purposes
+target "unit_tests"
+    -- call a function adding some boilerplate target configuration
+    -- it could for example setup some compiler flags or define some symbols
+    Epitech.binary()
+
+    -- add coverage support through compiler flag
+    cflag "--coverage"
+
+    -- if you want to manually list your source files without having to
+    -- regenerate your Makefile everytime you edit that list, you can have the
+    -- Makefile read that list from a file using the `cat` function
+    file { cat "files.txt" }
+
+    -- link to a system library
+    link "criterion"
+
+    -- add library search path
+    linkdir { "./lib/libgote/bin" }
+
+    -- remove a library search path
+    linkdir_remove { "./lib/libgote/bin" }
+
+-- an action is just a target that doesn't generate an output file (.PHONY)
+action "tests_run"
+    -- will make the "unit_tests" target
+    with "unit_tests"
+    -- run a shell command
+    run "./unit_tests"
+
+-- an action that runs the main binary
+action "run"
+    with "$(NAME)"
+    run "./$(NAME) $(ARGS)"
+```
+
+## Makefile template quick reference
+
+To specify a Makefile template to use, you can use the `loadtemplate` function:
+
+```lua
+loadtemplate ("epitech", {
+    PROJECT_NAME = project_name;
+    YEAR = function()
+        return os.date("%Y")
+    end;
+    DESCRIPTION = "Makefile to build the project";
+})
+```
+
+Corresponding template:
+
+```Makefile
+##
+## EPITECH PROJECT, {{ YEAR }}
+## {{ PROJECT_NAME }}
+## File description:
+## {{ DESCRIPTION }}
+##
+
+on_obj := echo "Compiling" $(1)
+on_lib := echo "Building" $(1)
+on_link := echo "Linking" $(1)
+
+{{ EPINE_BODY }}
 ```
