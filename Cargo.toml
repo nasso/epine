@@ -9,4 +9,6 @@ edition = "2018"
 [dependencies]
 clap = "2.33"
 serde = { version = "1.0", features = ["derive"] }
-toml = "0.5"
+mlua = { version = "0.5", features = ["lua54", "vendored", "serialize"] }
+tinytemplate = "1.2"
+thiserror = "1.0"
