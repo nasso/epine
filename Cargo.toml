@@ -11,3 +11,4 @@ clap = "2.33"
 serde = { version = "1.0", features = ["derive"] }
 mlua = { version = "0.5", features = ["lua53", "vendored", "serialize"] }
 thiserror = "1.0"
+directories = "3.0"

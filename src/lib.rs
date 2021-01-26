@@ -1,9 +1,10 @@
 use std::{
     fs::File,
     io::{self, Read},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
+use directories::ProjectDirs;
 use mlua::{Lua, StdLib};
 
 #[derive(thiserror::Error, Debug)]
@@ -24,31 +25,61 @@ pub struct Makefile {
     pub things: Vec<MakefileThing>,
 }
 
+fn add_require_search_path(lua: &Lua, path: PathBuf) -> Result<()> {
+    let searchers = lua
+        .globals()
+        .get::<_, mlua::Table>("package")?
+        .get::<_, mlua::Table>("searchers")?;
+
+    searchers.set(
+        searchers.len()? + 1,
+        lua.create_function::<String, Option<mlua::Function>, _>(move |lua, name: String| {
+            let mut path = path.join(&name);
+            path.set_extension("lua");
+
+            let mut source = String::new();
+
+            Ok(|| -> Result<mlua::Function> {
+                File::open(&path)?.read_to_string(&mut source)?;
+
+                Ok(lua.create_function(move |lua, p: mlua::MultiValue| {
+                    Ok(lua
+                        .load(&source)
+                        .set_name(&name)?
+                        .call::<_, mlua::MultiValue>(p)?)
+                })?)
+            }()
+            .ok())
+        })?,
+    )?;
+
+    Ok(())
+}
+
 impl Makefile {
     pub fn from_lua_source(src: &str, name: &str) -> Result<Self> {
         let lua = Lua::new_with(
             StdLib::TABLE | StdLib::MATH | StdLib::OS | StdLib::STRING | StdLib::PACKAGE,
         )?;
 
-        let searchers = lua
-            .globals()
-            .get::<_, mlua::Table>("package")?
-            .get::<_, mlua::Table>("searchers")?;
+        // epine will look for modules in the following locations, in order:
 
-        searchers.set(
-            searchers.len()? + 1,
-            lua.create_function(|lua, name: String| {
-                let name = format!("modules/{}.lua", name);
-                let mut file = File::open(&name)?;
-                let mut source = String::new();
+        // 1. current working directory (".")
+        // 2. ./modules
+        if let Ok(cwd) = std::env::current_dir() {
+            add_require_search_path(&lua, cwd.clone())?;
+            add_require_search_path(&lua, cwd.join("modules"))?;
+        }
 
-                file.read_to_string(&mut source)?;
+        // 3. <epine_binary>/modules
+        if let Ok(epine) = std::env::current_exe() {
+            add_require_search_path(&lua, epine.join("modules"))?;
+        }
 
-                Ok(lua.create_function(move |lua, p: mlua::MultiValue| {
-                    Ok(lua.load(&source).set_name(&name)?.call::<_, mlua::MultiValue>(p)?)
-                })?)
-            })?,
-        )?;
+        // 4. ~/.local/share/epine/modules
+        if let Some(dirs) = ProjectDirs::from("", "", "epine") {
+            add_require_search_path(&lua, dirs.data_dir().join("modules"))?;
+        }
 
         lua.load(include_str!("./api.lua"))
             .set_name("api")?
