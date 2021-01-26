@@ -5,5 +5,14 @@
     "spellright.documentTypes": [
         "markdown",
         "latex"
+    ],
+    "Lua.diagnostics.globals": [
+        "svar",
+        "erule",
+        "sprule",
+        "v"
+    ],
+    "Lua.diagnostics.disable": [
+        "lowercase-global"
     ]
 }
