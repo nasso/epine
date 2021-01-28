@@ -58,7 +58,11 @@ function find(str)
 end
 
 function make(cmd)
-    return "$(MAKE)" .. cmd
+    return "$(MAKE) " .. cmd
+end
+
+function quiet(s)
+    return "@" .. s
 end
 
 function action(name)
