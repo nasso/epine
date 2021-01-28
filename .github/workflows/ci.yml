@@ -20,4 +20,4 @@ jobs:
       - name: build image
         run: docker build . -f ci/${{ matrix.dockerfiles }} -t dockerfile
       - name: run image
-        run: docker run -it dockerfile
+        run: docker run dockerfile
