@@ -46,13 +46,6 @@ function vars(...)
     return "$(" .. table.concat({...}, ") $(") .. ")"
 end
 
-function phony(...)
-    return epine.erule {
-        targets = { ".PHONY" };
-        prerequisites = { ... };
-    };
-end
-
 function find(str)
     return "$(shell find -path '" .. str .. "')"
 end
@@ -63,6 +56,17 @@ end
 
 function quiet(s)
     return "@" .. s
+end
+
+function echo(s)
+    return "@echo '" .. s .. "'"
+end
+
+function phony(...)
+    return epine.erule {
+        targets = { ".PHONY" };
+        prerequisites = { ... };
+    };
 end
 
 function target(...)
