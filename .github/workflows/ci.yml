@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        dokerfiles: ['Dockerfile']
+        dockerfiles: ['Dockerfile']
 
     steps:
       - uses: actions/checkout@v2
