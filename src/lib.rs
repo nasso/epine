@@ -26,6 +26,7 @@ pub enum Vardef {
     Simple { name: String, value: String },
     Conditional { name: String, value: String },
     Shell { name: String, value: String },
+    Append { name: String, value: String },
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -201,6 +202,9 @@ impl Display for MakefileThing {
             }
             MakefileThing::Vardef(Vardef::Shell { name, value }) => {
                 writeln!(f, "{} != {}", name, value)
+            }
+            MakefileThing::Vardef(Vardef::Append { name, value }) => {
+                writeln!(f, "{} += {}", name, value)
             }
             MakefileThing::Directive(_) => unimplemented!(),
             MakefileThing::Break => {

@@ -28,6 +28,7 @@ epine.var = vardef "Recursive"
 epine.svar = vardef "Simple"
 epine.cvar = vardef "Conditional"
 epine.shvar = vardef "Shell"
+epine.append = vardef "Append"
 epine.erule = tokentag "ExplicitRule"
 epine.prule = tokentag "PatternRule"
 epine.sprule = tokentag "StaticPatternRule"
@@ -44,6 +45,10 @@ end
 
 function vars(...)
     return "$(" .. table.concat({...}, ") $(") .. ")"
+end
+
+function append(...)
+    return epine.append(...)
 end
 
 function find(str)

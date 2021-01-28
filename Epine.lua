@@ -5,7 +5,8 @@ local cc = require "epine-cc"
 return {
     var("SHELL", "/bin/sh");
     var("NAME", "libcorewar.a");
-    var("CFLAGS", "-Wall -Wextra -pedantic");
+    var("CFLAGS", "-Wall -Wextra");
+    append("CFLAGS", "-pedantic");
 
     action "all" {
         with = { "$(NAME)" }
