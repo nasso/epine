@@ -1,8 +1,14 @@
 [package]
 name = "epine"
 version = "0.0.0"
-authors = ["nasso <nassomails@gmail.com>"]
 edition = "2018"
+authors = ["nasso <nassomails@gmail.com>"]
+license = "MIT OR Apache-2.0"
+description = "Epine will NOT let you write your Makefiles!"
+homepage = "https://nasso.dev/epine"
+documentation = "https://nasso.dev/epine/docs"
+repository = "https://github.com/nasso/epine"
+readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
