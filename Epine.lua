@@ -8,11 +8,11 @@ return {
     var("CFLAGS", "-Wall -Wextra -pedantic");
 
     action "all" {
-        prerequisites = { "$(NAME)" }
+        with = { "$(NAME)" }
     };
 
     action "re" {
-        prerequisites = { "fclean", "all" };
+        with = { "fclean", "all" };
     };
 
     cc.static "$(NAME)" {
@@ -38,29 +38,25 @@ return {
     };
 
     target "lib/libmy/libmy.a" {
-        needs = { "lib/libmy" };
+        with = { "lib/libmy" };
 
         "$(MAKE) -C lib/libmy";
     };
 
     action "tests_run" {
-        prerequisites = { "tests.out" };
+        with = { "tests.out" };
 
-        run = { "./tests.out $(ARGS)" };
+        "./tests.out $(ARGS)";
     };
 
     action "clean" {
-        run = {
-            cc.clean();
-            "$(MAKE) -C lib/libmy fclean";
-        };
+        cc.clean();
+        "$(MAKE) -C lib/libmy fclean";
     };
 
     action "fclean" {
-        run = {
-            cc.clean();
-            cc.fclean();
-            "$(MAKE) -C lib/libmy fclean";
-        };
+        cc.clean();
+        cc.fclean();
+        "$(MAKE) -C lib/libmy fclean";
     };
 }

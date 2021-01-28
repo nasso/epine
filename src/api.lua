@@ -65,20 +65,6 @@ function quiet(s)
     return "@" .. s
 end
 
-function action(name)
-    return function(cfg)
-        return {
-            epine.erule {
-                targets = { name };
-                prerequisites = cfg.prerequisites;
-                recipe = cfg.run;
-            };
-
-            phony(name);
-        }
-    end
-end
-
 function target(...)
     local targets = {}
 
@@ -102,8 +88,46 @@ function target(...)
 
             return epine.erule {
                 targets = targets;
-                prerequisites = cfg.needs;
+                prerequisites = cfg.with;
                 recipe = recipe;
+            }
+        else
+            error ("invalid argument: " .. name_or_cfg)
+        end
+    end
+
+    return nxt(...)
+end
+
+function action(...)
+    local targets = {}
+
+    local function nxt(name_or_cfg, ...)
+        if type(name_or_cfg) == "string" then
+            local name = name_or_cfg
+
+            for _, v in ipairs({ name, ... }) do
+                assert(type(v) == "string", "inconsistent arguments")
+                targets[#targets+1] = v
+            end
+
+            return nxt
+        elseif type(name_or_cfg) == "table" then
+            local cfg = name_or_cfg
+            local recipe = {}
+
+            for _, v in ipairs(cfg) do
+                recipe[#recipe+1] = v
+            end
+
+            return {
+                epine.erule {
+                    targets = targets;
+                    prerequisites = cfg.with;
+                    recipe = recipe;
+                };
+
+                phony (targets);
             }
         else
             error ("invalid argument: " .. name_or_cfg)
