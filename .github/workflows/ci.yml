@@ -16,6 +16,7 @@ jobs:
         dokerfiles: ['Dockerfile']
 
     steps:
+      - uses: actions/checkout@v2
       - name: build image
         run: docker build . -f ci/${{ matrix.dockerfiles }} -t dockerfile
       - name: run image
