@@ -192,19 +192,39 @@ impl Display for MakefileThing {
         match self {
             MakefileThing::Comment(line) => writeln!(f, "#{}", line),
             MakefileThing::Vardef(Vardef::Recursive { name, value }) => {
-                writeln!(f, "{} = {}", name, value)
+                if value == "" {
+                    writeln!(f, "{} =", name)
+                } else {
+                    writeln!(f, "{} = {}", name, value)
+                }
             }
             MakefileThing::Vardef(Vardef::Simple { name, value }) => {
-                writeln!(f, "{} := {}", name, value)
+                if value == "" {
+                    writeln!(f, "{} :=", name)
+                } else {
+                    writeln!(f, "{} := {}", name, value)
+                }
             }
             MakefileThing::Vardef(Vardef::Conditional { name, value }) => {
-                writeln!(f, "{} ?= {}", name, value)
+                if value == "" {
+                    writeln!(f, "{} ?=", name)
+                } else {
+                    writeln!(f, "{} ?= {}", name, value)
+                }
             }
             MakefileThing::Vardef(Vardef::Shell { name, value }) => {
-                writeln!(f, "{} != {}", name, value)
+                if value == "" {
+                    writeln!(f, "{} !=", name)
+                } else {
+                    writeln!(f, "{} != {}", name, value)
+                }
             }
             MakefileThing::Vardef(Vardef::Append { name, value }) => {
-                writeln!(f, "{} += {}", name, value)
+                if value == "" {
+                    writeln!(f, "{} +=", name)
+                } else {
+                    writeln!(f, "{} += {}", name, value)
+                }
             }
             MakefileThing::Directive(_) => unimplemented!(),
             MakefileThing::Break => {
