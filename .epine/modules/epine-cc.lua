@@ -29,32 +29,32 @@ function cc.static(name)
         local objs = ns(name, "OBJS")
         local cflags = ns(name, "CFLAGS")
 
-        cleanlist[#cleanlist+1] = "rm -f " .. v(objs)
+        cleanlist[#cleanlist+1] = "rm -f " .. var(objs)
         fcleanlist[#fcleanlist+1] = "rm -f " .. name
 
         return {
-            svar(srcs, table.concat(cfg.srcs, " "));
-            svar(objs, "$(" .. srcs .. ":.c=.o)");
-            svar(cflags, table.concat(cfg.cflags, " "));
+            epine.svar(srcs, table.concat(cfg.srcs, " "));
+            epine.svar(objs, "$(" .. srcs .. ":.c=.o)");
+            epine.svar(cflags, table.concat(cfg.cflags, " "));
 
-            erule {
-                targets = { name, v(objs) };
+            epine.erule {
+                targets = { name, var(objs) };
                 prerequisites = cfg.prerequisites;
             };
 
-            sprule {
-                targets = { v(objs) };
+            epine.sprule {
+                targets = { var(objs) };
                 target_pattern = "%.o";
                 prereq_patterns = { "%.c" };
                 recipe = {
-                    "$(CC) $(CFLAGS) " .. v(cflags) .. " -c -o $@ $<";
+                    "$(CC) $(CFLAGS) " .. var(cflags) .. " -c -o $@ $<";
                 };
             };
 
-            erule {
+            epine.erule {
                 targets = { name };
-                prerequisites = { v(objs) };
-                recipe = { "$(AR) rc $@ " .. v(objs) };
+                prerequisites = { var(objs) };
+                recipe = { "$(AR) rc $@ " .. var(objs) };
             };
         }
     end
@@ -68,34 +68,34 @@ function cc.binary(name)
         local ldlibs = ns(name, "LDLIBS")
         local ldflags = ns(name, "LDFLAGS")
 
-        cleanlist[#cleanlist+1] = "rm -f " .. v(objs)
+        cleanlist[#cleanlist+1] = "rm -f " .. var(objs)
         fcleanlist[#fcleanlist+1] = "rm -f " .. name
 
         return {
-            svar(srcs, table.concat(cfg.srcs, " "));
-            svar(objs, "$(" .. srcs .. ":.c=.o)");
-            svar(cflags, table.concat(cfg.cflags, " "));
-            svar(ldlibs, table.concat(cfg.ldlibs, " "));
-            svar(ldflags, table.concat(cfg.ldflags, " "));
+            epine.svar(srcs, table.concat(cfg.srcs, " "));
+            epine.svar(objs, "$(" .. srcs .. ":.c=.o)");
+            epine.svar(cflags, table.concat(cfg.cflags, " "));
+            epine.svar(ldlibs, table.concat(cfg.ldlibs, " "));
+            epine.svar(ldflags, table.concat(cfg.ldflags, " "));
 
-            erule {
-                targets = { name, v(objs) };
+            epine.erule {
+                targets = { name, var(objs) };
                 prerequisites = cfg.prerequisites;
             };
 
-            sprule {
-                targets = { v(objs) };
+            epine.sprule {
+                targets = { var(objs) };
                 target_pattern = "%.o";
                 prereq_patterns = { "%.c" };
                 recipe = {
-                    "$(CC) $(CFLAGS) " .. v(cflags) .. " -c -o $@ $<";
+                    "$(CC) $(CFLAGS) " .. var(cflags) .. " -c -o $@ $<";
                 };
             };
 
-            erule {
+            epine.erule {
                 targets = { name };
-                prerequisites = { v(objs) };
-                recipe = { "$(CC) -o $@ " .. v(objs, ldlibs, ldflags) };
+                prerequisites = { var(objs) };
+                recipe = { "$(CC) -o $@ " .. vars(objs, ldlibs, ldflags) };
             };
         }
     end

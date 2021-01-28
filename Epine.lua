@@ -31,21 +31,16 @@ return {
         ldlibs = { "-lcorewar", "-lmy", "-lcriterion" };
     };
 
-    erule {
-        targets = { "lib/libmy", "lib/libmy/include" };
-        recipe = {
-            "mkdir -p lib/libmy";
-            "git clone https://github.com/nasso/libmy lib/libmy";
-            "rm -rf lib/libmy/.git";
-        };
+    target "lib/libmy" "lib/libmy/include" {
+        "mkdir -p lib/libmy";
+        "git clone https://github.com/nasso/libmy lib/libmy";
+        "rm -rf lib/libmy/.git";
     };
 
-    erule {
-        targets = { "lib/libmy/libmy.a" };
-        prerequisites = { "lib/libmy" };
-        recipe = {
-            "$(MAKE) -C lib/libmy";
-        };
+    target "lib/libmy/libmy.a" {
+        needs = { "lib/libmy" };
+
+        "$(MAKE) -C lib/libmy";
     };
 
     action "tests_run" {

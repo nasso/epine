@@ -6,12 +6,7 @@
         "markdown",
         "latex"
     ],
-    "Lua.diagnostics.globals": [
-        "svar",
-        "erule",
-        "sprule",
-        "v"
-    ],
+    "Lua.diagnostics.globals": [],
     "Lua.diagnostics.disable": [
         "lowercase-global"
     ]
