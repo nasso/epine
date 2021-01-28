@@ -1,56 +1,37 @@
-local function flatten(t)
-    local flat = {}
-
-    for _, v in ipairs(t) do
-        if type(v) == "table" and #v ~= 0 then
-            for _, vv in ipairs(flatten(v)) do
-                flat[#flat+1] = vv
-            end
-        else
-            flat[#flat+1] = v
-        end
-    end
-
-    return flat
-end
-
 local function tokentag(tag)
-    return function(t)
-        t.tag = tag
-
-        return t
+    return function(c)
+        return {
+            t = tag;
+            c = c;
+        }
     end
 end
 
-local function xvar(flavor)
+br = tokentag "Break" ()
+comment = tokentag "Comment"
+directive = tokentag "Directive"
+
+function vardef(flavor)
     return function(name, value)
         return
-            vardef {
-                flavor = flavor;
-                name = name;
-                value = value;
-            };
+            tokentag "Vardef" {
+                t = flavor;
+                c = {
+                    name = name;
+                    value = value;
+                };
+            }
     end
 end
 
-function comment(s)
-    return {
-        tag = "comment";
-        text = s;
-    }
-end
+var = vardef "Recursive"
+svar = vardef "Simple"
+cvar = vardef "Conditional"
+shvar = vardef "Shell"
 
-vardef = tokentag "vardef"
-erule = tokentag "erule"
-irule = tokentag "irule"
-sprule = tokentag "sprule"
-directive = tokentag "directive"
-br = tokentag "br" {}
-
-var = xvar "recursive"
-svar = xvar "simple"
-cvar = xvar "conditional"
-shvar = xvar "shell"
+erule = tokentag "ExplicitRule"
+prule = tokentag "PatternRule"
+sprule = tokentag "StaticPatternRule"
 
 -- utils
 function v(...)
@@ -76,7 +57,7 @@ function action(name)
             erule {
                 targets = { name };
                 prerequisites = cfg.prerequisites;
-                recipe = cfg.run and flatten(cfg.run);
+                recipe = cfg.run;
             };
 
             phony(name);

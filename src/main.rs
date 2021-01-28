@@ -1,3 +1,5 @@
+use std::{io::Write, fs::File};
+
 use clap::clap_app;
 
 use epine::Makefile;
@@ -7,20 +9,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         (version: "1.0")
         (author: "nasso <nassomails@gmail.com>")
         (about: "A Makefile generator for the 21st century")
-        (@arg EPINE_FILE: -f --file +takes_value
-            "Path to the Epine file. By default, Epine will look for Epine.lua in the current directory and walk its way up until it finds one.")
+        (@arg EPINE_FILE: -f --file +takes_value "Path to the Epine file. By default, Epine will look for Epine.lua in the current directory and walk its way up until it finds one.")
+        (@arg OUTPUT_FILE: -o --output +takes_value "Path to the Makefile to be generated. Defaults to \"Makefile\" in the current directory.")
     )
     .get_matches();
 
     let path = matches.value_of("EPINE_FILE").unwrap_or("Epine.lua");
+    let dest = matches.value_of("OUTPUT_FILE").unwrap_or("Makefile");
 
     // get config file
     let makefile = match Makefile::from_lua_file(&path) {
         Ok(makefile) => makefile,
-        Err(epine::Error::Lua(lua_error)) => {
-            eprintln!("{}", lua_error);
-            std::process::exit(84)
-        }
         Err(epine::Error::Io(e)) => {
             if let std::io::ErrorKind::NotFound = e.kind() {
                 eprintln!("{}: file not found", path);
@@ -28,13 +27,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 return Err(e.into())
             }
-        }
+        },
+        Err(epine::Error::Lua(lua_error)) => {
+            eprintln!("{}", lua_error);
+            std::process::exit(84)
+        },
     };
 
-    match makefile.generate() {
-        Ok(source) => println!("{}", source),
-        Err(e) => eprintln!("Error: {:?}", e),
-    }
+    let mut output = File::create(dest)?;
+    write!(output, "{}", makefile)?;
 
     Ok(())
 }
