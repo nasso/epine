@@ -42,9 +42,13 @@ local function is_array(t)
 end
 
 local function flatten(t)
-    local flat = {}
+    local flat = nil
 
     for _, v in ipairs(t) do
+        if not flat then
+            flat = {}
+        end
+
         if is_array(v) then
             if #v > 0 then
                 local vflat = flatten(v)
@@ -76,7 +80,7 @@ local function normalize_thing(thing)
 
     for k, v in pairs(thing.c) do
         if type(v) == "table" then
-            if v[1] then
+            if is_array(v) then
                 norm.c[k] = flatten(v)
             else
                 norm.c[k] = v

@@ -29,7 +29,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         },
         Err(epine::Error::Lua(lua_error)) => {
-            eprintln!("{}", lua_error);
+            eprintln!("lua error: {:?}", lua_error);
             std::process::exit(84)
         },
     };
