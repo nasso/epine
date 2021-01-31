@@ -1,27 +1,97 @@
+-- public utils (global!)
+-- these should be relatively straightforward and only contain stuff that is
+-- *very* common in Epine scripts
+
+--- flat concat
+function fconcat(list, pre, sep)
+    pre = pre or ""
+    sep = sep or " "
+
+    if not list then
+        return ""
+    end
+
+    local words = ""
+
+    for i, v in ipairs(list) do
+        -- add a space before all but the first word
+        if i > 1 then
+            words = words .. sep
+        end
+
+        if type(v) == "table" then
+            words = words .. fconcat(v, pre, sep)
+        else
+            words = words .. pre .. tostring(v)
+        end
+    end
+
+    return words
+end
+
+--- References one or more variable by name.
+-- Examples:
+-- `vref("NAME") == "$(NAME)"`
+function vref(...)
+    return "$(" .. fconcat({...}, "", ") $(") .. ")"
+end
+
+--- The recommended way to call `make` from within your Makefile.
+-- Makes use of the `$(MAKE)` implicit variable to forward any command line
+-- option that was used to call the current instance of `make`.
+function make(...)
+    return "$(MAKE) " .. fconcat({...})
+end
+
+--- The recommended way to call `rm` from within your Makefile.
+-- Makes use of the `$(RM)` implicit variable to allow replacing the program
+-- called when needed. GNU make will use `rm -f` by default.
+function rm(...)
+    local list = fconcat({...})
+
+    if list ~= "" then
+        return "$(RM) " .. list
+    end
+end
+
+--- Prepends the command with '@' to make it not print itself out.
+function quiet(...)
+    return "@" .. fconcat({...})
+end
+
+function echo(...)
+    return quiet("echo", ...)
+end
+
+--- Call the `find` utility to search for paths matching the given glob pattern.
+function find(str)
+    return "$(shell find -path '" .. str .. "')"
+end
+
 epine = {}
 
 local function tokentag(tag)
     return function(c)
         return {
-            t = tag;
-            c = c;
+            t = tag,
+            c = c
         }
     end
 end
 
 local function vardef(flavor)
-    return function(name, value)
+    return function(name, ...)
         return tokentag "Vardef" {
-            t = flavor;
+            t = flavor,
             c = {
-                name = name;
-                value = value;
-            };
+                name = name,
+                value = table.concat({...}, " ")
+            }
         }
     end
 end
 
-epine.br = tokentag "Break" ()
+epine.br = tokentag "Break"()
 epine.comment = tokentag "Comment"
 epine.directive = tokentag "Directive"
 epine.var = vardef "Recursive"
@@ -33,45 +103,62 @@ epine.erule = tokentag "ExplicitRule"
 epine.prule = tokentag "PatternRule"
 epine.sprule = tokentag "StaticPatternRule"
 
--- public utils (global!)
-
-function var(name, ...)
-    if ... then
-        return epine.var(name, ...)
+--- Like an `if` statement for use within array-like tables.
+-- Returns a function that returns an empty table if `condition` evaluates to
+-- `false` or `nil`. In any other case, the returned function will just return
+-- anything you give it as argument.
+-- @param condition The condition. Can be any truthy or falsy value.
+-- @return a function value
+function epine.static_if(condition)
+    if condition then
+        return function(...)
+            return ...
+        end
     else
-        return "$(" .. name .. ")"
+        return function()
+            return {}
+        end
     end
 end
 
-function vars(...)
-    return "$(" .. table.concat({...}, ") $(") .. ")"
+function epine.static_switch(key)
+    return function(t)
+        local val = t[key]
+        while val ~= nil and type(val) ~= "table" do
+            val = t[val]
+        end
+        return val or {}
+    end
 end
 
-function append(...)
-    return epine.append(...)
-end
+--- Collects values returned by calls to `fn` on each `(k, v)` pair in `t`.
+-- The `fn` function will be called for each `(k, v)` pair in `t` and any of its
+-- sub-table values recursively. Values returned by all the calls to `fn` are
+-- collected in an array-like table and returned by this function.
+-- @return an array (table) value
+function rmap(t, fn)
+    local res = {}
 
-function find(str)
-    return "$(shell find -path '" .. str .. "')"
-end
+    if t then
+        for k, v in pairs(t) do
+            if type(v) == "table" then
+                for _, vv in ipairs(rmap(v, fn)) do
+                    res[#res + 1] = vv
+                end
+            else
+                res[#res + 1] = fn(k, v)
+            end
+        end
+    end
 
-function make(cmd)
-    return "$(MAKE) " .. cmd
-end
-
-function quiet(s)
-    return "@" .. s
-end
-
-function echo(s)
-    return "@echo '" .. s .. "'"
+    return res
 end
 
 function phony(...)
     return epine.erule {
-        targets = { ".PHONY" };
-        prerequisites = { ... };
-    };
+        targets = {".PHONY"},
+        prerequisites = {...}
+    }
 end
 
 function target(...)
@@ -81,9 +168,9 @@ function target(...)
         if type(name_or_cfg) == "string" then
             local name = name_or_cfg
 
-            for _, v in ipairs({ name, ... }) do
+            for _, v in ipairs({name, ...}) do
                 assert(type(v) == "string", "inconsistent arguments")
-                targets[#targets+1] = v
+                targets[#targets + 1] = v
             end
 
             return nxt
@@ -92,16 +179,16 @@ function target(...)
             local recipe = {}
 
             for _, v in ipairs(cfg) do
-                recipe[#recipe+1] = v
+                recipe[#recipe + 1] = v
             end
 
             return epine.erule {
-                targets = targets;
-                prerequisites = cfg.with;
-                recipe = recipe;
+                targets = targets,
+                prerequisites = cfg.prerequisites,
+                recipe = recipe
             }
         else
-            error ("invalid argument: " .. name_or_cfg)
+            error("invalid argument: " .. name_or_cfg)
         end
     end
 
@@ -115,9 +202,9 @@ function action(...)
         if type(name_or_cfg) == "string" then
             local name = name_or_cfg
 
-            for _, v in ipairs({ name, ... }) do
+            for _, v in ipairs({name, ...}) do
                 assert(type(v) == "string", "inconsistent arguments")
-                targets[#targets+1] = v
+                targets[#targets + 1] = v
             end
 
             return nxt
@@ -126,20 +213,19 @@ function action(...)
             local recipe = {}
 
             for _, v in ipairs(cfg) do
-                recipe[#recipe+1] = v
+                recipe[#recipe + 1] = v
             end
 
             return {
                 epine.erule {
-                    targets = targets;
-                    prerequisites = cfg.with;
-                    recipe = recipe;
-                };
-
-                phony (targets);
+                    targets = targets,
+                    prerequisites = cfg.prerequisites,
+                    recipe = recipe
+                },
+                phony(targets)
             }
         else
-            error ("invalid argument: " .. name_or_cfg)
+            error("invalid argument: " .. name_or_cfg)
         end
     end
 

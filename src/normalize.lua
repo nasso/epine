@@ -4,16 +4,25 @@
 	Set indent ("") to prefix each line:    Mytable [KEY] [KEY]...[KEY] VALUE
 --]]
 local function rPrint(s, l, i) -- recursive Print (structure, limit, indent)
-	l = (l) or 100; i = i or "";	-- default item limit, indent string
-	if (l<1) then print "ERROR: Item limit reached."; return l-1 end;
-	local ts = type(s);
-	if (ts ~= "table") then print (i,ts,s); return l-1 end
-	print (i,ts);           -- print "table"
-	for k,v in pairs(s) do  -- print "[KEY] VALUE"
-		l = rPrint(v, l, i.."\t["..tostring(k).."]");
-		if (l < 0) then break end
-	end
-	return l
+    l = (l) or 100
+    i = i or "" -- default item limit, indent string
+    if (l < 1) then
+        print "ERROR: Item limit reached."
+        return l - 1
+    end
+    local ts = type(s)
+    if (ts ~= "table") then
+        print(i, ts, s)
+        return l - 1
+    end
+    print(i, ts) -- print "table"
+    for k, v in pairs(s) do -- print "[KEY] VALUE"
+        l = rPrint(v, l, i .. "\t[" .. tostring(k) .. "]")
+        if (l < 0) then
+            break
+        end
+    end
+    return l
 end
 
 --<
@@ -54,11 +63,11 @@ local function flatten(t)
                 local vflat = flatten(v)
 
                 for _, vv in ipairs(vflat) do
-                    flat[#flat+1] = vv
+                    flat[#flat + 1] = vv
                 end
             end
         else
-            flat[#flat+1] = v
+            flat[#flat + 1] = v
         end
     end
 
@@ -72,11 +81,11 @@ local function normalize_thing(thing)
 
     --< early return for simple things like br and comments >--
     if type(thing.c) ~= "table" then
-        return { t = thing.t, c = thing.c }
+        return {t = thing.t, c = thing.c}
     end
 
     --< the funny >--
-    local norm = { t = thing.t, c = {} }
+    local norm = {t = thing.t, c = {}}
 
     for k, v in pairs(thing.c) do
         if type(v) == "table" then
@@ -104,13 +113,13 @@ local function normalize_mkdef(def)
         assert(type(v) == "table")
 
         if v.t then --< its a thing!
-            norm[#norm+1] = normalize_thing(v)
+            norm[#norm + 1] = normalize_thing(v)
         elseif is_array(v) then --< normalize "sub-definitions" recursively
             local sub = normalize_mkdef(v)
 
             --< flatten them into the main definition >--
             for _, sv in ipairs(sub) do
-                norm[#norm+1] = sv
+                norm[#norm + 1] = sv
             end
         else
             --< its... not a thing? >--

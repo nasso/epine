@@ -9,6 +9,9 @@ edition = "2018"
 [dependencies]
 clap = "2.33"
 serde = { version = "1.0", features = ["derive"] }
-mlua = { version = "0.5", features = ["lua53", "vendored", "serialize"] }
 thiserror = "1.0"
 directories = "3.0"
+
+[dependencies.mlua]
+version = "0.5"
+features = ["lua53", "vendored", "serialize"]
