@@ -1,4 +1,4 @@
-use std::{io::Write, fs::File};
+use std::{fs::File, io::Write};
 
 use clap::clap_app;
 
@@ -25,13 +25,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 eprintln!("{}: file not found", path);
                 std::process::exit(1)
             } else {
-                return Err(e.into())
+                return Err(e.into());
             }
-        },
-        Err(epine::Error::Lua(lua_error)) => {
-            eprintln!("lua error: {}", lua_error);
+        }
+        Err(e) => {
+            eprintln!("error: {}", e);
             std::process::exit(84)
-        },
+        }
     };
 
     let mut output = File::create(dest)?;

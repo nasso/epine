@@ -1,13 +1,16 @@
 use std::{
     fmt::{Display, Formatter},
-    fs::File,
+    fs::{create_dir_all, rename, File},
     io::{self, Read},
     path::{Path, PathBuf},
 };
 
-use directories::ProjectDirs;
+use flate2::read::GzDecoder;
+use io::ErrorKind;
 use mlua::{Lua, LuaSerdeExt, StdLib};
 use serde::Deserialize;
+use tar::{Archive, EntryType};
+use tokio::runtime;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -15,6 +18,8 @@ pub enum Error {
     Io(#[from] io::Error),
     #[error("lua error {0}")]
     Lua(#[from] mlua::Error),
+    #[error("io error {0}")]
+    Http(#[from] reqwest::Error),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -95,13 +100,14 @@ fn add_require_search_path(lua: &Lua, path: PathBuf) -> Result<()> {
     searchers.set(
         searchers.len()? + 1,
         lua.create_function::<String, Option<mlua::Function>, _>(move |lua, name: String| {
-            let mut path = path.join(&name);
-            path.set_extension("lua");
+            let path = path.join(&name);
 
             let mut source = String::new();
 
             Ok(|| -> Result<mlua::Function> {
-                File::open(&path)?.read_to_string(&mut source)?;
+                File::open(path.with_extension("lua"))
+                    .or_else(|_| File::open(path.join("init.lua")))?
+                    .read_to_string(&mut source)?;
 
                 Ok(lua.create_function(move |lua, p: mlua::MultiValue| {
                     Ok(lua
@@ -117,33 +123,124 @@ fn add_require_search_path(lua: &Lua, path: PathBuf) -> Result<()> {
     Ok(())
 }
 
+fn add_require_github_importer(lua: &Lua, ghfolder: PathBuf) -> Result<()> {
+    let searchers = lua
+        .globals()
+        .get::<_, mlua::Table>("package")?
+        .get::<_, mlua::Table>("searchers")?;
+
+    searchers.set(
+        searchers.len()? + 1,
+        lua.create_function::<String, Option<mlua::Function>, _>(move |lua, name: String| {
+            if name.starts_with("@") {
+                let (org, repo, tag) = {
+                    let repo: Vec<_> = name[1..].split('/').collect();
+
+                    if repo.len() != 3 {
+                        return Ok(None);
+                    }
+
+                    (repo[0], repo[1], repo[2])
+                };
+
+                let mut source = String::new();
+                Ok(|| -> Result<mlua::Function> {
+                    let target = format!("https://github.com/{}/{}/tarball/{}", org, repo, tag);
+                    let tmp_dir = tempfile::Builder::new().prefix("epine").tempdir()?;
+                    let rt = runtime::Builder::new_current_thread()
+                        .enable_io()
+                        .build()
+                        .unwrap();
+                    println!("attempting download of: {}", target);
+                    let response = rt.block_on(reqwest::get(&target))?;
+                    println!("res: {}", response.status());
+
+                    let dlpath = {
+                        let fname = format!("{}.{}.{}.tar.gz", org, repo, tag);
+
+                        let fname = tmp_dir.path().join(fname);
+                        fname
+                    };
+
+                    // download
+                    {
+                        let mut dest = File::create(&dlpath)?;
+                        let content = rt.block_on(response.bytes())?;
+                        std::io::copy(&mut content.as_ref(), &mut dest)?;
+                    }
+
+                    // extract
+                    {
+                        let tar_gz = File::open(&dlpath)?;
+                        let tar = GzDecoder::new(tar_gz);
+                        let mut archive = Archive::new(tar);
+                        archive.unpack(&ghfolder)?;
+                    }
+
+                    // rename
+                    let root = {
+                        let tar_gz = File::open(&dlpath)?;
+                        let rootname = {
+                            let tar = GzDecoder::new(tar_gz);
+                            let mut archive = Archive::new(tar);
+                            let root = archive
+                                .entries()?
+                                .find(|file| match file {
+                                    Ok(file) => file.header().entry_type() == EntryType::Directory,
+                                    _ => false,
+                                })
+                                .ok_or(std::io::Error::new(
+                                    ErrorKind::NotFound,
+                                    "empty archive",
+                                ))??;
+                            root.path()?.into_owned()
+                        };
+
+                        let dest = ghfolder.join(format!("@{}", org)).join(repo);
+                        let root = dest.join(tag);
+                        create_dir_all(&dest)?;
+                        rename(ghfolder.join(rootname), &root)?;
+                        root
+                    };
+
+                    File::open(root.join("init.lua"))?.read_to_string(&mut source)?;
+
+                    let name = name.clone();
+                    Ok(lua.create_function(move |lua, p: mlua::MultiValue| {
+                        Ok(lua
+                            .load(&source)
+                            .set_name(&name)?
+                            .call::<_, mlua::MultiValue>(p)?)
+                    })?)
+                }()
+                .map_err(|e| {
+                    println!("ERROR: {:?}", e);
+                    e
+                })
+                .ok())
+            } else {
+                Ok(None)
+            }
+        })?,
+    )?;
+
+    Ok(())
+}
+
 impl Makefile {
     pub fn from_lua_source(src: &str, name: &str) -> Result<Self> {
         let lua = Lua::new_with(
-            StdLib::TABLE
-                | StdLib::MATH
-                | StdLib::OS
-                | StdLib::STRING
-                | StdLib::PACKAGE
+            StdLib::TABLE | StdLib::MATH | StdLib::OS | StdLib::STRING | StdLib::PACKAGE,
         )?;
 
         // epine will look for modules in the following locations, in order:
 
         // 1. current working directory (".")
-        // 2. ./.epine/modules
+        // 2. ./.epine/github
         if let Ok(cwd) = std::env::current_dir() {
             add_require_search_path(&lua, cwd.clone())?;
-            add_require_search_path(&lua, cwd.join(".epine").join("modules"))?;
-        }
-
-        // 3. <epine_binary>/modules
-        if let Ok(epine) = std::env::current_exe() {
-            add_require_search_path(&lua, epine.join("modules"))?;
-        }
-
-        // 4. ~/.local/share/epine/modules
-        if let Some(dirs) = ProjectDirs::from("", "", "epine") {
-            add_require_search_path(&lua, dirs.data_dir().join("modules"))?;
+            add_require_search_path(&lua, cwd.join(".epine").join("github"))?;
+            add_require_github_importer(&lua, cwd.join(".epine").join("github"))?;
         }
 
         lua.load(include_str!("./api.lua"))
