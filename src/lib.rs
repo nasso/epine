@@ -68,158 +68,157 @@ pub struct Makefile {
     things: Vec<MakefileThing>,
 }
 
-fn _get_things<'a, T: Deserialize<'a>>(lua: &'a Lua, t: mlua::Table<'a>) -> Result<Vec<T>> {
-    let mut things = Vec::new();
+fn local_require_searcher<'lua>(
+    lua: &'lua Lua,
+    path: &Path,
+    name: String,
+) -> Result<(mlua::Function<'lua>, String)> {
+    let path = path.join(&name);
 
-    for v in t.sequence_values::<mlua::Value>() {
-        match v? {
-            mlua::Value::Table(v) if v.len()? != 0 => {
-                things.append(&mut _get_things(lua, v)?);
-            }
-            mlua::Value::Table(v)
-                if v.clone()
-                    .pairs::<mlua::Value, mlua::Value>()
-                    .next()
-                    .is_none() =>
-            {
-                ()
-            }
-            v => things.push(lua.from_value(v)?),
-        };
+    let mut source = String::new();
+
+    let mut actualpath = path.with_extension("lua");
+
+    match File::open(&actualpath) {
+        Ok(file) => Ok(file),
+        Err(_) => {
+            actualpath = path.join("init.lua");
+            File::open(&actualpath)
+        }
+    }?
+    .read_to_string(&mut source)?;
+
+    let parent = actualpath
+        .canonicalize()?
+        .parent()
+        .map_or(PathBuf::default(), |p| PathBuf::from(p));
+    let actualpath = actualpath.to_str().unwrap_or(&name).to_owned();
+    Ok((
+        lua.create_function(move |lua, p: mlua::MultiValue| {
+            let searchers = lua
+                .globals()
+                .get::<_, mlua::Table>("package")?
+                .get::<_, mlua::Table>("searchers")?;
+            let old_dir_searcher = searchers.get::<_, mlua::Value>(0)?;
+
+            searchers.set(1, add_require_search_path(lua, parent.clone())?)?;
+
+            let module = lua
+                .load(&source)
+                .set_name(&name)?
+                .call::<_, mlua::MultiValue>(p)?;
+
+            searchers.set(1, old_dir_searcher)?;
+
+            Ok(module)
+        })?,
+        actualpath,
+    ))
+}
+
+fn add_require_search_path<'a>(lua: &'a Lua, path: PathBuf) -> mlua::Result<mlua::Function<'a>> {
+    lua.create_function(
+        move |lua, name| match local_require_searcher(lua, &path, name) {
+            Ok((f, n)) => Ok((Some(f), n)),
+            Err(e) => Ok((None, format!("couldn't load the module: {}", e))),
+        },
+    )
+}
+
+fn try_module_download(path: &Path, ident: &str) -> Option<PathBuf> {
+    let (org, repo, tag) = {
+        let repo: Vec<_> = ident.split('/').collect();
+
+        if repo.len() != 3 {
+            return None;
+        }
+
+        (repo[0], repo[1], repo[2])
+    };
+
+    let target = format!("https://github.com/{}/{}/tarball/{}", org, repo, tag);
+    let tmp_dir = tempfile::Builder::new().prefix("epine").tempdir().ok()?;
+    let rt = runtime::Builder::new_current_thread()
+        .enable_io()
+        .build()
+        .unwrap();
+    println!("attempting download of: {}", target);
+    let response = rt.block_on(reqwest::get(&target)).ok()?;
+    println!("res: {}", response.status());
+
+    let dlpath = {
+        let fname = format!("{}.{}.{}.tar.gz", org, repo, tag);
+
+        let fname = tmp_dir.path().join(fname);
+        fname
+    };
+
+    // download
+    {
+        let mut dest = File::create(&dlpath).ok()?;
+        let content = rt.block_on(response.bytes()).ok()?;
+        std::io::copy(&mut content.as_ref(), &mut dest).ok()?;
     }
 
-    Ok(things)
-}
+    // extract
+    {
+        let tar_gz = File::open(&dlpath).ok()?;
+        let tar = GzDecoder::new(tar_gz);
+        let mut archive = Archive::new(tar);
+        archive.unpack(&path).ok()?;
+    }
 
-fn add_require_search_path(lua: &Lua, path: PathBuf) -> Result<()> {
-    let searchers = lua
-        .globals()
-        .get::<_, mlua::Table>("package")?
-        .get::<_, mlua::Table>("searchers")?;
+    // rename (the archive has a single folder inside with some random name)
+    // there is probably a better way to do this
+    let root = {
+        let tar_gz = File::open(&dlpath).ok()?;
 
-    searchers.set(
-        searchers.len()? + 1,
-        lua.create_function::<String, Option<mlua::Function>, _>(move |lua, name: String| {
-            let path = path.join(&name);
-
-            let mut source = String::new();
-
-            Ok(|| -> Result<mlua::Function> {
-                File::open(path.with_extension("lua"))
-                    .or_else(|_| File::open(path.join("init.lua")))?
-                    .read_to_string(&mut source)?;
-
-                Ok(lua.create_function(move |lua, p: mlua::MultiValue| {
-                    Ok(lua
-                        .load(&source)
-                        .set_name(&name)?
-                        .call::<_, mlua::MultiValue>(p)?)
-                })?)
-            }()
-            .ok())
-        })?,
-    )?;
-
-    Ok(())
-}
-
-fn add_require_github_importer(lua: &Lua, ghfolder: PathBuf) -> Result<()> {
-    let searchers = lua
-        .globals()
-        .get::<_, mlua::Table>("package")?
-        .get::<_, mlua::Table>("searchers")?;
-
-    searchers.set(
-        searchers.len()? + 1,
-        lua.create_function::<String, Option<mlua::Function>, _>(move |lua, name: String| {
-            if name.starts_with("@") {
-                let (org, repo, tag) = {
-                    let repo: Vec<_> = name[1..].split('/').collect();
-
-                    if repo.len() != 3 {
-                        return Ok(None);
-                    }
-
-                    (repo[0], repo[1], repo[2])
-                };
-
-                let mut source = String::new();
-                Ok(|| -> Result<mlua::Function> {
-                    let target = format!("https://github.com/{}/{}/tarball/{}", org, repo, tag);
-                    let tmp_dir = tempfile::Builder::new().prefix("epine").tempdir()?;
-                    let rt = runtime::Builder::new_current_thread()
-                        .enable_io()
-                        .build()
-                        .unwrap();
-                    println!("attempting download of: {}", target);
-                    let response = rt.block_on(reqwest::get(&target))?;
-                    println!("res: {}", response.status());
-
-                    let dlpath = {
-                        let fname = format!("{}.{}.{}.tar.gz", org, repo, tag);
-
-                        let fname = tmp_dir.path().join(fname);
-                        fname
-                    };
-
-                    // download
-                    {
-                        let mut dest = File::create(&dlpath)?;
-                        let content = rt.block_on(response.bytes())?;
-                        std::io::copy(&mut content.as_ref(), &mut dest)?;
-                    }
-
-                    // extract
-                    {
-                        let tar_gz = File::open(&dlpath)?;
-                        let tar = GzDecoder::new(tar_gz);
-                        let mut archive = Archive::new(tar);
-                        archive.unpack(&ghfolder)?;
-                    }
-
-                    // rename
-                    let root = {
-                        let tar_gz = File::open(&dlpath)?;
-                        let rootname = {
-                            let tar = GzDecoder::new(tar_gz);
-                            let mut archive = Archive::new(tar);
-                            let root = archive
-                                .entries()?
-                                .find(|file| match file {
-                                    Ok(file) => file.header().entry_type() == EntryType::Directory,
-                                    _ => false,
-                                })
-                                .ok_or(std::io::Error::new(
-                                    ErrorKind::NotFound,
-                                    "empty archive",
-                                ))??;
-                            root.path()?.into_owned()
-                        };
-
-                        let dest = ghfolder.join(format!("@{}", org)).join(repo);
-                        let root = dest.join(tag);
-                        create_dir_all(&dest)?;
-                        rename(ghfolder.join(rootname), &root)?;
-                        root
-                    };
-
-                    File::open(root.join("init.lua"))?.read_to_string(&mut source)?;
-
-                    let name = name.clone();
-                    Ok(lua.create_function(move |lua, p: mlua::MultiValue| {
-                        Ok(lua
-                            .load(&source)
-                            .set_name(&name)?
-                            .call::<_, mlua::MultiValue>(p)?)
-                    })?)
-                }()
-                .map_err(|e| {
-                    println!("ERROR: {:?}", e);
-                    e
+        // find the name of the root folder
+        let archive_root_name = {
+            let tar = GzDecoder::new(tar_gz);
+            let mut archive = Archive::new(tar);
+            let root = archive
+                .entries()
+                .ok()?
+                .find(|file| match file {
+                    Ok(file) => file.header().entry_type() == EntryType::Directory,
+                    _ => false,
                 })
-                .ok())
+                .ok_or(std::io::Error::new(ErrorKind::NotFound, "empty archive"))
+                .ok()?
+                .ok()?;
+            root.path().ok()?.into_owned()
+        };
+
+        let dest = path.join(format!("@{}", org)).join(repo);
+        create_dir_all(&dest).ok()?;
+        let dest_module_root = dest.join(tag);
+        rename(path.join(archive_root_name), &dest_module_root).ok()?;
+        dest_module_root
+    };
+
+    Some(root)
+}
+
+fn add_require_github_importer(
+    lua: &Lua,
+    searchers: &mlua::Table,
+    ghfolder: PathBuf,
+) -> Result<()> {
+    searchers.set(
+        searchers.len()? + 1,
+        lua.create_function(move |lua, name: String| {
+            if !name.starts_with("@") {
+                return Ok((None, String::from("not a remote module")));
+            }
+
+            if let Some(path) = try_module_download(&ghfolder, &name[1..]) {
+                match local_require_searcher(lua, &path, String::from("init")) {
+                    Ok((f, n)) => Ok((Some(f), n)),
+                    Err(e) => Ok((None, format!("couldn't load the module: {}", e))),
+                }
             } else {
-                Ok(None)
+                return Ok((None, String::from("couldn't fetch remote module")));
             }
         })?,
     )?;
@@ -228,20 +227,32 @@ fn add_require_github_importer(lua: &Lua, ghfolder: PathBuf) -> Result<()> {
 }
 
 impl Makefile {
-    pub fn from_lua_source(src: &str, name: &str) -> Result<Self> {
+    pub fn from_lua_source(src: &str, name: &str, dir: Option<&Path>) -> Result<Self> {
         let lua = Lua::new_with(
             StdLib::TABLE | StdLib::MATH | StdLib::OS | StdLib::STRING | StdLib::PACKAGE,
         )?;
 
-        // epine will look for modules in the following locations, in order:
+        let package = lua.globals().get::<_, mlua::Table>("package")?;
+        let searchers = lua.create_table()?;
 
-        // 1. current working directory (".")
-        // 2. ./.epine/github
-        if let Ok(cwd) = std::env::current_dir() {
-            add_require_search_path(&lua, cwd.clone())?;
-            add_require_search_path(&lua, cwd.join(".epine").join("github"))?;
-            add_require_github_importer(&lua, cwd.join(".epine").join("github"))?;
+        // if a "working directory" is specified (usually the folder in which Epine.lua is located)
+        if let Some(dir) = dir {
+            // epine will look for modules in the following locations, in order:
+            // 1. current working directory (".")
+            searchers.set(
+                searchers.len()? + 1,
+                add_require_search_path(&lua, dir.to_owned())?,
+            )?;
+            // 2. ./.epine/github
+            searchers.set(
+                searchers.len()? + 1,
+                add_require_search_path(&lua, dir.join(".epine").join("github"))?,
+            )?;
+            // 2. https://github.com :)
+            add_require_github_importer(&lua, &searchers, dir.join(".epine").join("github"))?;
         }
+
+        package.set("searchers", searchers)?;
 
         lua.load(include_str!("./api.lua"))
             .set_name("api")?
@@ -266,7 +277,11 @@ impl Makefile {
 
         file.read_to_string(&mut source)?;
 
-        Makefile::from_lua_source(&source[..], &path.as_ref().to_string_lossy())
+        Makefile::from_lua_source(
+            &source[..],
+            &path.as_ref().to_string_lossy(),
+            path.as_ref().parent(),
+        )
     }
 
     pub fn generate(&self) -> Result<String> {
