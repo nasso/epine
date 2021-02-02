@@ -99,7 +99,8 @@ return tek:make()
 ```
 
 This simple script, which is only 12 lines of code, generates a clean,
-human-readable, and *fully functional* Makefile! Of course, this is only a mere
+human-readable, and *fully functional*
+[Makefile](examples/github-fetch/Makefile)! Of course, this is only a mere
 example of what Epine is capable of.
 
 Because it's all Lua anyway, you can imagine any sort of API to describe your
