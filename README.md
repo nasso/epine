@@ -1,4 +1,5 @@
 # Epine
+[![Crates.io](https://img.shields.io/crates/v/epine.svg)](https://crates.io/crates/epine)
 
 Epine is a powerful Makefile generator using the Lua programming language for
 its configuration.
@@ -113,3 +114,10 @@ didn't want to copy-paste my Makefiles between the different school projects I
 had to build during my first years as an [Epitech] student.
 
 [Epitech]: https://epitech.eu
+
+## License
+
+Epine is licensed under the terms of both the MIT license and the Apache License
+(Version 2.0), at your choice.
+
+See LICENSE-MIT and LICENSE-APACHE-2.0 files for the full texts.
