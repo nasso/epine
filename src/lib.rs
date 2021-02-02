@@ -1,7 +1,7 @@
 use std::{
     fmt::{Display, Formatter},
     fs::{create_dir_all, rename, File},
-    io::{self, Read},
+    io::{self, Read, Write},
     path::{Path, PathBuf},
 };
 
@@ -14,11 +14,11 @@ use tokio::runtime;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    #[error("io error {0}")]
+    #[error("{0}")]
     Io(#[from] io::Error),
-    #[error("lua error {0}")]
+    #[error("{0}")]
     Lua(#[from] mlua::Error),
-    #[error("io error {0}")]
+    #[error("{0}")]
     Http(#[from] reqwest::Error),
 }
 
@@ -142,9 +142,10 @@ fn try_module_download(path: &Path, ident: &str) -> Option<PathBuf> {
         .enable_io()
         .build()
         .unwrap();
-    println!("attempting download of: {}", target);
+    print!("getting {}/{} ({})... ", org, repo, tag);
+    std::io::stdout().flush().ok()?;
     let response = rt.block_on(reqwest::get(&target)).ok()?;
-    println!("res: {}", response.status());
+    println!("{}", response.status());
 
     let dlpath = {
         let fname = format!("{}.{}.{}.tar.gz", org, repo, tag);

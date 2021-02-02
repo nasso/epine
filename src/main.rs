@@ -29,7 +29,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         Err(e) => {
-            eprintln!("error: {}", e);
+            eprintln!("{}", e);
             std::process::exit(84)
         }
     };

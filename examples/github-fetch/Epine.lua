@@ -1,49 +1,21 @@
-local cc = require "@nasso/epine-cc/v0.1.0-alpha"
+local tek = require "@nasso/epine-tek/v0.1.0-alpha"
 
-cc.cflags = {"-Wall", "-Wextra", "-pedantic"}
+-- name the project (the given name will appear in the header)
+tek:project "libmy" {"libmy.a", "hello"}
 
-return {
-    epine.var("CFLAGS", "-g3"),
-    epine.br,
-    action "all" {
-        prerequisites = {"libmy.a"}
-    },
-    epine.br,
-    cc.static "libmy.a" {
-        srcs = {"./src/my_putstr.c", "./src/my_printf.c"},
-        incdirs = {"include"},
-        defines = {
-            {
-                "MY_ALLOW_MALLOC",
-                "MY_ALLOW_FREE"
-            },
-            ["MY_FAKE_MALLOC_FAILURE"] = 16
-        }
-    },
-    epine.br,
-    cc.binary "unit_tests" {
-        prerequisites = {"libmy.a"},
-        srcs = {"tests/test.c"},
-        incdirs = {"include"},
-        libs = {"my", "criterion"},
-        libdirs = {"."}
-    },
-    epine.br,
-    action "tests_run" {
-        prerequisites = {"unit_tests"},
-        "./unit_tests"
-    },
-    epine.br,
-    action "clean" {
-        rm(cc.cleanlist)
-    },
-    epine.br,
-    action "fclean" {
-        rm(cc.cleanlist),
-        rm("libmy.a", "unit_tests")
-    },
-    epine.br,
-    action "re" {
-        prerequisites = {"fclean", "all"}
-    }
+-- the first target will be the default one
+-- its name will be replaced by the $(NAME) variable in the generated Makefile
+tek:static "libmy.a" {
+    language = "C"
 }
+
+-- some random binary that says hello using the libmy
+tek:binary "hello" {
+    language = "C",
+    prerequisites = {"libmy.a"},
+    srcs = {"main.c"},
+    libs = {"my"}
+}
+
+-- don't forget to generate and return the Makefile to Epine!
+return tek:make()
