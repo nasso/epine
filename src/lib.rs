@@ -99,7 +99,7 @@ fn local_require_searcher<'lua>(
                 .globals()
                 .get::<_, mlua::Table>("package")?
                 .get::<_, mlua::Table>("searchers")?;
-            let old_dir_searcher = searchers.get::<_, mlua::Value>(0)?;
+            let old_dir_searcher = searchers.get::<_, mlua::Value>(1)?;
 
             searchers.set(1, add_require_search_path(lua, parent.clone())?)?;
 
