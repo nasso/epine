@@ -66,3 +66,13 @@ fclean:
 
 re: fclean all
 .PHONY: re
+
+include
+include
+include aaa.d
+include helo.d aaa.d rrr.d
+
+-include
+-include
+-include aaa.d
+-include helo.d aaa.d rrr.d

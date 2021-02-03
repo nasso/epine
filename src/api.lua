@@ -79,13 +79,22 @@ local function tokentag(tag)
     end
 end
 
+local function directive(tag)
+    return function(c)
+        return tokentag "Directive" {
+            t = tag,
+            c = c
+        }
+    end
+end
+
 local function vardef(flavor)
     return function(name, ...)
         return tokentag "Vardef" {
             t = flavor,
             c = {
                 name = name,
-                value = table.concat({...}, " ")
+                value = fconcat({...})
             }
         }
     end
@@ -93,7 +102,8 @@ end
 
 epine.br = tokentag "Break"()
 epine.comment = tokentag "Comment"
-epine.directive = tokentag "Directive"
+epine.include = directive "Include"
+epine.sinclude = directive "SInclude"
 epine.var = vardef "Recursive"
 epine.svar = vardef "Simple"
 epine.cvar = vardef "Conditional"

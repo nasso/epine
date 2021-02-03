@@ -36,7 +36,10 @@ pub enum Vardef {
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "t", content = "c")]
-pub enum Directive {}
+pub enum Directive {
+    Include(Option<Vec<String>>),
+    SInclude(Option<Vec<String>>),
+}
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(tag = "t", content = "c")]
@@ -339,7 +342,28 @@ impl Display for MakefileThing {
                     writeln!(f, "{} += {}", name, value)
                 }
             }
-            MakefileThing::Directive(_) => unimplemented!(),
+            MakefileThing::Directive(Directive::Include(fnames)) => {
+                write!(f, "include")?;
+
+                if let Some(fnames) = fnames {
+                    for fname in fnames.iter() {
+                        write!(f, " {}", fname)?;
+                    }
+                }
+
+                writeln!(f)
+            }
+            MakefileThing::Directive(Directive::SInclude(fnames)) => {
+                write!(f, "-include")?;
+
+                if let Some(fnames) = fnames {
+                    for fname in fnames.iter() {
+                        write!(f, " {}", fname)?;
+                    }
+                }
+
+                writeln!(f)
+            }
             MakefileThing::Break => {
                 writeln!(f)
             }

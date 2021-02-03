@@ -18,4 +18,16 @@ tek:binary "hello" {
 }
 
 -- don't forget to generate and return the Makefile to Epine!
-return tek:make()
+return {
+    tek:make(),
+    epine.br,
+    epine.include(),
+    epine.include {},
+    epine.include {"aaa.d"},
+    epine.include {{"helo.d", {"aaa.d", "rrr.d"}}},
+    epine.br,
+    epine.sinclude(),
+    epine.sinclude {},
+    epine.sinclude {"aaa.d"},
+    epine.sinclude {{"helo.d", {"aaa.d", "rrr.d"}}}
+}
