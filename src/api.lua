@@ -113,34 +113,6 @@ epine.erule = tokentag "ExplicitRule"
 epine.prule = tokentag "PatternRule"
 epine.sprule = tokentag "StaticPatternRule"
 
---- Like an `if` statement for use within array-like tables.
--- Returns a function that returns an empty table if `condition` evaluates to
--- `false` or `nil`. In any other case, the returned function will just return
--- anything you give it as argument.
--- @param condition The condition. Can be any truthy or falsy value.
--- @return a function value
-function epine.static_if(condition)
-    if condition then
-        return function(...)
-            return ...
-        end
-    else
-        return function()
-            return {}
-        end
-    end
-end
-
-function epine.static_switch(key)
-    return function(t)
-        local val = t[key]
-        while val ~= nil and type(val) ~= "table" do
-            val = t[val]
-        end
-        return val or {}
-    end
-end
-
 function phony(...)
     return epine.erule {
         targets = {".PHONY"},
