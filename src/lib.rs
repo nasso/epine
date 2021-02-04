@@ -5,6 +5,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use directories::ProjectDirs;
 use flate2::read::GzDecoder;
 use io::ErrorKind;
 use mlua::{Lua, LuaSerdeExt, StdLib};
@@ -244,20 +245,26 @@ impl Makefile {
         let searchers = lua.create_table()?;
 
         // if a "working directory" is specified (usually the folder in which Epine.lua is located)
+        // epine will look for modules in the current working directory
         if let Some(dir) = dir {
-            // epine will look for modules in the following locations, in order:
-            // 1. current working directory (".")
             searchers.set(
                 searchers.len()? + 1,
                 add_require_search_path(&lua, dir.to_owned())?,
             )?;
-            // 2. ./.epine/github
+        }
+
+        // github modules are downloaded in a global directory to avoid downloading them many times
+        // also fixes issues where the module contains examples that can get caught by a "find"
+        if let Some(proj_dirs) = ProjectDirs::from("", "", "epine") {
+            let dir = proj_dirs.cache_dir();
+
+            // searcher that finds previously downloaded modules
             searchers.set(
                 searchers.len()? + 1,
-                add_require_search_path(&lua, dir.join(".epine").join("github"))?,
+                add_require_search_path(&lua, dir.join("github"))?,
             )?;
-            // 2. https://github.com :)
-            add_require_github_importer(&lua, &searchers, dir.join(".epine").join("github"))?;
+            // the importer is the one that downloads new modules
+            add_require_github_importer(&lua, &searchers, dir.join("github"))?;
         }
 
         package.set("searchers", searchers)?;
