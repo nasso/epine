@@ -88,15 +88,24 @@ local function directive(tag)
     end
 end
 
+local Vardef = {}
+Vardef.__index = Vardef
+
+function Vardef:targets(...)
+    self.c.targets = {...}
+    return self
+end
+
 local function vardef(flavor)
     return function(name, ...)
-        return tokentag "Vardef" {
-            t = flavor,
-            c = {
+        return setmetatable(
+            tokentag "Vardef" {
+                flavor = flavor,
                 name = name,
                 value = fconcat({...})
-            }
-        }
+            },
+            Vardef
+        )
     end
 end
 

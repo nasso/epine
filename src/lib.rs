@@ -25,13 +25,12 @@ pub enum Error {
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(tag = "t", content = "c")]
-pub enum Vardef {
-    Recursive { name: String, value: String },
-    Simple { name: String, value: String },
-    Conditional { name: String, value: String },
-    Shell { name: String, value: String },
-    Append { name: String, value: String },
+pub enum VarFlavor {
+    Recursive,
+    Simple,
+    Conditional,
+    Shell,
+    Append,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -45,7 +44,12 @@ pub enum Directive {
 #[serde(tag = "t", content = "c")]
 pub enum MakefileThing {
     Comment(String),
-    Vardef(Vardef),
+    Vardef {
+        name: String,
+        value: String,
+        flavor: VarFlavor,
+        targets: Option<Vec<String>>,
+    },
     Directive(Directive),
     Break,
     ExplicitRule {
@@ -307,39 +311,30 @@ impl Display for MakefileThing {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             MakefileThing::Comment(line) => writeln!(f, "#{}", line),
-            MakefileThing::Vardef(Vardef::Recursive { name, value }) => {
-                if value == "" {
-                    writeln!(f, "{} =", name)
-                } else {
-                    writeln!(f, "{} = {}", name, value)
+            MakefileThing::Vardef {
+                name,
+                value,
+                flavor,
+                targets,
+            } => {
+                if let Some(targets) = targets {
+                    write!(f, "{}: ", targets.join(" "))?;
                 }
-            }
-            MakefileThing::Vardef(Vardef::Simple { name, value }) => {
-                if value == "" {
-                    writeln!(f, "{} :=", name)
-                } else {
-                    writeln!(f, "{} := {}", name, value)
+
+                write!(f, "{} ", name)?;
+
+                match flavor {
+                    VarFlavor::Recursive => write!(f, "=")?,
+                    VarFlavor::Simple => write!(f, ":=")?,
+                    VarFlavor::Conditional => write!(f, "?=")?,
+                    VarFlavor::Shell => write!(f, "!=")?,
+                    VarFlavor::Append => write!(f, "+=")?,
                 }
-            }
-            MakefileThing::Vardef(Vardef::Conditional { name, value }) => {
+
                 if value == "" {
-                    writeln!(f, "{} ?=", name)
+                    writeln!(f)
                 } else {
-                    writeln!(f, "{} ?= {}", name, value)
-                }
-            }
-            MakefileThing::Vardef(Vardef::Shell { name, value }) => {
-                if value == "" {
-                    writeln!(f, "{} !=", name)
-                } else {
-                    writeln!(f, "{} != {}", name, value)
-                }
-            }
-            MakefileThing::Vardef(Vardef::Append { name, value }) => {
-                if value == "" {
-                    writeln!(f, "{} +=", name)
-                } else {
-                    writeln!(f, "{} += {}", name, value)
+                    writeln!(f, " {}", value)
                 }
             }
             MakefileThing::Directive(Directive::Include(fnames)) => {
