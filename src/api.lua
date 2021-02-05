@@ -155,6 +155,7 @@ function target(...)
             return epine.erule {
                 targets = targets,
                 prerequisites = cfg.prerequisites,
+                order_only_prerequisites = cfg.order_only_prerequisites,
                 recipe = recipe
             }
         else
@@ -190,6 +191,7 @@ function action(...)
                 epine.erule {
                     targets = targets,
                     prerequisites = cfg.prerequisites,
+                    order_only_prerequisites = cfg.order_only_prerequisites,
                     recipe = recipe
                 },
                 phony(targets)

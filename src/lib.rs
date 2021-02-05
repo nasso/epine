@@ -56,17 +56,20 @@ pub enum MakefileThing {
     ExplicitRule {
         targets: Vec<String>,
         prerequisites: Option<Vec<String>>,
+        order_only_prerequisites: Option<Vec<String>>,
         recipe: Option<Vec<String>>,
     },
     PatternRule {
         patterns: Vec<String>,
         prerequisites: Option<Vec<String>>,
+        order_only_prerequisites: Option<Vec<String>>,
         recipe: Option<Vec<String>>,
     },
     StaticPatternRule {
         targets: Vec<String>,
         target_pattern: String,
         prereq_patterns: Option<Vec<String>>,
+        order_only_prerequisites: Option<Vec<String>>,
         recipe: Option<Vec<String>>,
     },
 }
@@ -236,7 +239,12 @@ fn add_require_github_importer(
 }
 
 impl Makefile {
-    pub fn from_lua_source(src: &str, name: &str, dir: Option<&Path>) -> Result<Self> {
+    pub fn from_lua_source(
+        src: &str,
+        name: &str,
+        dir: Option<&Path>,
+        args: &[&str],
+    ) -> Result<Self> {
         let lua = Lua::new_with(
             StdLib::TABLE | StdLib::MATH | StdLib::OS | StdLib::STRING | StdLib::PACKAGE,
         )?;
@@ -273,7 +281,12 @@ impl Makefile {
             .set_name("api")?
             .exec()?;
 
-        let makefile_def = lua.load(src).set_name(name)?.call(())?;
+        let args = args
+            .into_iter()
+            .map(|arg| lua.create_string(arg).map(|arg| mlua::Value::String(arg)))
+            .collect::<mlua::Result<_>>()?;
+        let args = mlua::MultiValue::from_vec(args);
+        let makefile_def = lua.load(src).set_name(name)?.call(args)?;
 
         let makefile_def = lua
             .load(include_str!("./normalize.lua"))
@@ -286,7 +299,7 @@ impl Makefile {
         })
     }
 
-    pub fn from_lua_file<P: AsRef<Path>>(path: P) -> Result<Self> {
+    pub fn from_lua_file<P: AsRef<Path>>(path: P, args: &[&str]) -> Result<Self> {
         let mut file = File::open(&path)?;
         let mut source = String::new();
 
@@ -296,6 +309,7 @@ impl Makefile {
             &source[..],
             &path.as_ref().to_string_lossy(),
             path.as_ref().parent(),
+            args,
         )
     }
 
@@ -372,11 +386,20 @@ impl Display for MakefileThing {
             MakefileThing::ExplicitRule {
                 targets,
                 prerequisites,
+                order_only_prerequisites,
                 recipe,
             } => {
                 write!(f, "{}:", targets.join(" "))?;
 
                 if let Some(prereqs) = prerequisites {
+                    for pre in prereqs.iter() {
+                        write!(f, " {}", pre)?;
+                    }
+                }
+
+                if let Some(prereqs) = order_only_prerequisites {
+                    write!(f, " |")?;
+
                     for pre in prereqs.iter() {
                         write!(f, " {}", pre)?;
                     }
@@ -395,11 +418,20 @@ impl Display for MakefileThing {
             MakefileThing::PatternRule {
                 patterns,
                 prerequisites,
+                order_only_prerequisites,
                 recipe,
             } => {
                 write!(f, "{}:", patterns.join(" "))?;
 
                 if let Some(prereqs) = prerequisites {
+                    for pre in prereqs.iter() {
+                        write!(f, " {}", pre)?;
+                    }
+                }
+
+                if let Some(prereqs) = order_only_prerequisites {
+                    write!(f, " |")?;
+
                     for pre in prereqs.iter() {
                         write!(f, " {}", pre)?;
                     }
@@ -419,15 +451,26 @@ impl Display for MakefileThing {
                 targets,
                 target_pattern,
                 prereq_patterns,
+                order_only_prerequisites,
                 recipe,
             } => {
                 write!(f, "{}: {}", targets.join(" "), target_pattern)?;
 
-                if let Some(prereq_pats) = prereq_patterns {
+                if prereq_patterns.is_some() || order_only_prerequisites.is_some() {
                     write!(f, ":")?;
+                }
 
+                if let Some(prereq_pats) = prereq_patterns {
                     for pp in prereq_pats.iter() {
                         write!(f, " {}", pp)?;
+                    }
+                }
+
+                if let Some(prereqs) = order_only_prerequisites {
+                    write!(f, " |")?;
+
+                    for pre in prereqs.iter() {
+                        write!(f, " {}", pre)?;
                     }
                 }
 

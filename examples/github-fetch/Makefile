@@ -21,3 +21,8 @@ $(MyGKrellm_OBJS): %.o: %.cpp
 clean:
 	$(RM) $(MyGKrellm_DEPS) $(MyGKrellm_OBJS)
 .PHONY: clean
+
+# no idea if this works this is just a test file
+lib/libjzon.a lib/libmy.a: lib/%.a: lib/% | lib
+	$(MAKE) -C lib/$* $*.a
+	cp lib/$*/$*.a $@
