@@ -51,13 +51,9 @@ local function is_array(t)
 end
 
 local function flatten(t)
-    local flat = nil
+    local flat = {}
 
     for _, v in ipairs(t) do
-        if not flat then
-            flat = {}
-        end
-
         if is_array(v) then
             if #v > 0 then
                 local vflat = flatten(v)
@@ -71,7 +67,11 @@ local function flatten(t)
         end
     end
 
-    return flat
+    if #flat > 0 then
+        return flat
+    else
+        return nil
+    end
 end
 
 local function normalize_thing(thing)
