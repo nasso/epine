@@ -1,14 +1,15 @@
 use std::{fs::File, io::Write, path::PathBuf};
 
-use clap::clap_app;
+use clap::{clap_app, crate_authors, crate_description, crate_name, crate_version};
 
 use epine::Makefile;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let matches = clap_app!(epine =>
-        (version: "1.0")
-        (author: "nasso <nassomails@gmail.com>")
-        (about: "A Makefile generator for the 21st century")
+        (name: crate_name!())
+        (version: crate_version!())
+        (author: crate_authors!("\n"))
+        (about: crate_description!())
         (@arg EPINE_FILE: -f --file +takes_value "Path to the Epine file. By default, Epine will look for Epine.lua in the current directory and walk its way up until it finds one.")
         (@arg OUTPUT_FILE: -o --output +takes_value "Path to the Makefile to be generated. Defaults to \"Makefile\" in the current directory.")
         (@arg ARGS: +last +multiple)

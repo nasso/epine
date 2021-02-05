@@ -188,7 +188,7 @@ dependencies = [
 
 [[package]]
 name = "epine"
-version = "0.1.0-alpha7"
+version = "0.1.0-alpha8"
 dependencies = [
  "clap",
  "directories",
