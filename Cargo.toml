@@ -1,6 +1,6 @@
 [package]
 name = "epine"
-version = "0.1.0-alpha5"
+version = "0.1.0-alpha6"
 authors = ["nasso <nassomails@gmail.com>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
