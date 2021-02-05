@@ -55,9 +55,9 @@ local function flatten(t)
 
     for _, v in ipairs(t) do
         if is_array(v) then
-            if #v > 0 then
-                local vflat = flatten(v)
+            local vflat = flatten(v)
 
+            if vflat then
                 for _, vv in ipairs(vflat) do
                     flat[#flat + 1] = vv
                 end
