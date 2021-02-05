@@ -51,6 +51,8 @@ function rm(...)
 
     if list ~= "" then
         return "$(RM) " .. list
+    else
+        return {}
     end
 end
 
