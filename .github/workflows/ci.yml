@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        dockerfiles: ['epitest', 'ubuntu']
+        dockerfiles: ['epitest.dockerfile', 'ubuntu.dockerfile']
 
     steps:
       - uses: actions/checkout@v2
