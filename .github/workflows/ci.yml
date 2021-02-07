@@ -5,19 +5,19 @@ on: push
 jobs:
   build:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - run: cargo build
-
-  test:
-    runs-on: ubuntu-latest
     strategy:
       matrix:
-        dockerfiles: ['Dockerfile']
+        dockerfiles: ['epitest', 'ubuntu']
 
     steps:
       - uses: actions/checkout@v2
       - name: build image
-        run: docker build . -f ci/${{ matrix.dockerfiles }} -t dockerfile
+        run: docker build . -f ci/${{ matrix.dockerfiles }} -t epine
       - name: run image
-        run: docker run dockerfile
+        run: docker run epine
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: cargo build
