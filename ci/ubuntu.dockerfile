@@ -6,7 +6,7 @@ RUN apt-get update && \
     apt-get install -y curl && \
     apt-get install -y build-essential && \
     curl https://sh.rustup.rs -sSf | sh -s -- -y && \
-    mkdir /app && git clone https://github.com/Arcahub/Test.git /app
+    mkdir /app && git clone https://github.com/Arcahub/Epine-CI-test.git /app
 
 COPY . /epine/
 RUN cd /epine && ~/.cargo/bin/cargo build --release && cp ./target/release/epine /app
