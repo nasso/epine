@@ -151,6 +151,7 @@ fn try_module_download(path: &Path, ident: &str) -> Option<PathBuf> {
     let tmp_dir = tempfile::Builder::new().prefix("epine").tempdir().ok()?;
     let rt = runtime::Builder::new_current_thread()
         .enable_io()
+        .enable_time()
         .build()
         .unwrap();
     print!("getting {}/{} ({})... ", org, repo, tag);
