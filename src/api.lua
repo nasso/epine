@@ -29,7 +29,7 @@ function fconcat(list, pre, sep)
     return words
 end
 
---- References one or more variable by name.
+--- Reference one or more variable by name.
 -- Examples:
 -- `vref("NAME") == "$(NAME)"`
 function vref(...)
@@ -56,11 +56,12 @@ function rm(...)
     end
 end
 
---- Prepends the command with '@' to make it not print itself out.
+--- Prepend the command with '@' to make it not print itself out.
 function quiet(...)
     return "@" .. fconcat({...})
 end
 
+--- Insert a call to the `echo` command.
 function echo(...)
     return quiet("echo", ...)
 end
@@ -124,6 +125,8 @@ epine.erule = tokentag "ExplicitRule"
 epine.prule = tokentag "PatternRule"
 epine.sprule = tokentag "StaticPatternRule"
 
+--- Create a `.PHONY` rule with the given prerequisites
+-- @param ... rule names to be included in the PHONY rule
 function phony(...)
     return epine.erule {
         targets = {".PHONY"},
@@ -131,6 +134,25 @@ function phony(...)
     }
 end
 
+--- Create regular rule targets
+--
+-- Example configuration:
+--
+--     target "example" {
+--       prerequisites = {"other"},
+--       order_only_prerequisites = {"something"},
+--
+--       -- recipe for the target:
+--       "touch example",
+--     }
+--
+-- Will generate:
+--
+--     example: other | something
+--         touch example
+--
+-- @param name name of the target
+-- @param cfg configuration for the target
 function target(...)
     local targets = {}
 
@@ -166,6 +188,26 @@ function target(...)
     return nxt(...)
 end
 
+--- Same as `target` but adds a `PHONY` rule for the generated rule
+--
+-- Example configuration:
+--
+--     action "example" {
+--       prerequisites = {"other"},
+--       order_only_prerequisites = {"something"},
+--
+--       -- recipe for the target:
+--       "echo hello!",
+--     }
+--
+-- Will generate:
+--
+--     example: other | something
+--         echo hello!
+--     .PHONY: example
+--
+-- @param name name of the target
+-- @param cfg configuration for the target
 function action(...)
     local targets = {}
 
