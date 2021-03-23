@@ -1,37 +1,117 @@
-## Welcome to GitHub Pages
+## Goals
 
-You can use the [editor on GitHub](https://github.com/nasso/epine/edit/gh-pages/index.md) to maintain and preview the content for your website in Markdown files.
+- Generating a single Makefile
+- Scaling up as well as scaling down
+- Allowing anyone to share their Epine modules and helper libraries
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
+## Non-goals
 
-### Markdown
+- Replacing `make`
+- Replacing a package manager
 
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
+## Installation
 
-```markdown
-Syntax highlighted code block
+Install the latest release of Epine with Cargo:
 
-# Header 1
-## Header 2
-### Header 3
-
-- Bulleted
-- List
-
-1. Numbered
-2. List
-
-**Bold** and _Italic_ and `Code` text
-
-[Link](url) and ![Image](src)
+```
+cargo install epine
 ```
 
-For more details see [GitHub Flavored Markdown](https://guides.github.com/features/mastering-markdown/).
+If you don't have Cargo/Rust installed, you can get it on
+[rustup.rs](https://rustup.rs).
 
-### Jekyll Themes
+## Hello, Epine!
 
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/nasso/epine/settings). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
+Go in the folder of your choice, where you want your Makefile to be generated.
 
-### Support or Contact
+```
+mkdir hello-epine
+cd hello-epine
+```
 
-Having trouble with Pages? Check out our [documentation](https://docs.github.com/categories/github-pages-basics/) or [contact support](https://support.github.com/contact) and we’ll help you sort it out.
+In this new folder, create a new file named `Epine.lua`:
+
+```lua
+return {
+    action "hello" {
+        echo("hello!");
+    };
+}
+```
+
+To (re)generate the Makefile, simply run `epine`, without any argument.
+
+```
+epine
+```
+
+Epine will run the Lua code contained in the `Epine.lua` file and generate a
+Makefile according to what this file returns to it.
+
+```Makefile
+hello:
+    @echo hello!
+.PHONY: hello
+```
+
+## Using remote modules
+
+The way the generated Makefile is described is very close to what ends up being
+generated. If it was just that, Epine would just be a very annoying way to write
+your Makefiles... in Lua.
+
+This is why Epine has the ability to download and load Lua modules from GitHub
+repositories. This makes it really easy to reuse and share helper functions and
+libraries. For now, only GitHub is supported, but I would love to see Epine
+support many more sources in the future; contributions are welcome!
+
+Here's an example showing how simple the generation of a Makefile can become:
+
+```lua
+-- the `tek` module, which was made for students at Epitech, takes care of
+-- generating many rules automatically, like "all", "clean", "fclean", etc...
+-- it also generates the proper rules to build and run unit tests!
+local tek = require "@nasso/epine-tek/v0.1.0-alpha"
+
+-- project metadata (its name, and the targets built by the "all" target)
+tek:project "libmy" {"libmy.a", "hello"}
+
+-- a C static library!
+tek:static "libmy.a" {
+    language = "C";
+}
+
+-- a C binary using the library!
+tek:binary "hello" {
+    language = "C";
+    prerequisites = {"libmy.a"};
+    srcs = {"main.c"};
+    libs = {"my"};
+}
+
+-- return the Makefile description to Epine for generation
+return tek:make()
+```
+
+This simple script, which is only 12 lines of code, generates a clean,
+human-readable, and *fully functional*
+[Makefile](examples/github-fetch/Makefile)! Of course, this is only a mere
+example of what Epine is capable of.
+
+Because it's all Lua anyway, you can imagine any sort of API to describe your
+project, and you can share it with anyone!
+
+## Status
+
+Epine is still a *very* young project. The main reason I built it was because I
+didn't want to copy-paste my Makefiles between the different school projects I
+had to build during my first years as an [Epitech] student.
+
+[Epitech]: https://epitech.eu
+
+## License
+
+Epine is licensed under the terms of both the MIT license and the Apache License
+(Version 2.0), at your choice.
+
+See LICENSE-MIT and LICENSE-APACHE-2.0 files for the full texts.
